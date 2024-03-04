@@ -7,9 +7,10 @@ import matplotlib.pyplot as plt
 RANDOM_SEED = 42
 MEMORIA_RAM = 100
 VELOCIDAD_CPU = 3  # Número de instrucciones por unidad de tiempo
-NUM_PROCESOS = [25, 50, 100, 150, 200]
 INTERVALO_LLEGADA = 10
+NUM_PROCESOS = [25, 50, 100, 150, 200]
 TIEMPOS_PROMEDIO = []
+DESVIACIONES_ESTANDAR = []
 
 def proceso(env, nombre, memoria, cpu, tiempo_total, io_list):
     llegada = env.now
@@ -76,9 +77,11 @@ def ejecutar_simulacion(env, num_procesos, tiempo_simulacion):
     # Ejecutar simulación hasta que se alcance el tiempo máximo
     yield env.timeout(tiempo_simulacion)
 
-    # Calcular el tiempo promedio y devolverlo como resultado
+    # Calcular el tiempo promedio y desviación estándar y devolverlos como resultado
     tiempo_promedio = statistics.mean(tiempo_total)
+    desviacion_estandar = statistics.stdev(tiempo_total)
     TIEMPOS_PROMEDIO.append(tiempo_promedio)
+    DESVIACIONES_ESTANDAR.append(desviacion_estandar)
 
 # Configurar la simulación
 random.seed(RANDOM_SEED)
@@ -86,27 +89,15 @@ random.seed(RANDOM_SEED)
 # Definir el tiempo máximo de simulación
 tiempo_maximo = 100  # Por ejemplo, establece un tiempo máximo de 100 unidades de tiempo
 
-# Estrategias para reducir el tiempo promedio de ejecución
-ESTRATEGIAS = [
-    ("Incrementar memoria a 200", 200, MEMORIA_RAM, VELOCIDAD_CPU),
-    ("Restaurar memoria a 100 y aumentar velocidad de CPU a 6", MEMORIA_RAM, 6, 1),
-    ("Restaurar velocidad de CPU a 3 y emplear 2 procesadores", MEMORIA_RAM, VELOCIDAD_CPU, 2)
-]
+# Ejecutar la simulación para diferentes cantidades de procesos
+for num_procesos in NUM_PROCESOS:
+    env = simpy.Environment()
+    env.process(ejecutar_simulacion(env, num_procesos, tiempo_maximo))  # Ejecutar la simulación
+    env.run()  # Ejecutar la simulación hasta que se alcance el tiempo máximo
 
-for nombre_estrategia, memoria_estrategia, velocidad_estrategia, num_cpus_estrategia in ESTRATEGIAS:
-    print(f"Estrategia: {nombre_estrategia}")
-    TIEMPOS_PROMEDIO = []  # Reiniciar la lista de tiempos promedio para cada estrategia
-    for num_procesos in NUM_PROCESOS:
-        env = simpy.Environment()
-        memoria = simpy.Container(env, init=memoria_estrategia, capacity=memoria_estrategia)
-        cpu = simpy.Resource(env, capacity=num_cpus_estrategia)
-        env.process(ejecutar_simulacion(env, num_procesos, tiempo_maximo))  # Ejecutar la simulación
-        env.run()  # Ejecutar la simulación hasta que se alcance el tiempo máximo
-
-    # Graficar resultados para la estrategia actual
-    plt.plot(NUM_PROCESOS, TIEMPOS_PROMEDIO, label=nombre_estrategia)
-    plt.xlabel('Número de Procesos')
-    plt.ylabel('Tiempo Promedio')
-    plt.title('Número de Procesos vs Tiempo Promedio')
-    plt.legend()
-    plt.show()
+# Graficar resultados
+plt.errorbar(NUM_PROCESOS, TIEMPOS_PROMEDIO, yerr=DESVIACIONES_ESTANDAR, fmt='-o')
+plt.xlabel('Número de Procesos')
+plt.ylabel('Tiempo Promedio')
+plt.title('Número de Procesos vs Tiempo Promedio')
+plt.show()
